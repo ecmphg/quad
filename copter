@@ -1,0 +1,102 @@
+#include <Servo.h>
+
+Servo ESC1, ESC2, ESC3, ESC4; // create servo objects to control the ESCs
+
+int irPin1 = A1; // IR sensor pin 1
+int irPin2 = A2; // IR sensor pin 2
+int irPin3 = A3; // IR sensor pin 3
+int irPin4 = A4; // IR sensor pin 4
+
+const int sonarTriggerPin = 8; // Pin for sonar sensor trigger
+const int sonarEchoPin = 9;    // Pin for sonar sensor echo
+const int minHeight = 6;       // Minimum height in inches
+
+void setup() {
+  Serial.begin(9600);
+
+  // Attach the ESCs to the corresponding pins with min and max pulse width in microseconds
+  ESC1.attach(2, 1000, 2000);
+  ESC2.attach(3, 1000, 2000);
+  ESC3.attach(4, 1000, 2000);
+  ESC4.attach(5, 1000, 2000);
+
+  // Sonar sensor setup
+  pinMode(sonarTriggerPin, OUTPUT);
+  pinMode(sonarEchoPin, INPUT);
+}
+
+float getSonarDistance() {
+  // Trigger the sonar sensor
+  digitalWrite(sonarTriggerPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(sonarTriggerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(sonarTriggerPin, LOW);
+
+  // Read the echo pulse duration in microseconds
+  long duration = pulseIn(sonarEchoPin, HIGH);
+
+  // Convert the duration to inches
+  float distanceInInches = duration / 74 / 2.0;
+
+  return distanceInInches;
+}
+
+void loop() {
+  // Read the IR sensor values for each direction
+  int irValue1 = analogRead(irPin1);
+  int irValue2 = analogRead(irPin2);
+  int irValue3 = analogRead(irPin3);
+  int irValue4 = analogRead(irPin4);
+
+  // Map the sensor values to the range of 0-180
+  int mappedValue1 = map(irValue1, 0, 1023, 0, 180);
+  int mappedValue2 = map(irValue2, 0, 1023, 0, 180);
+  int mappedValue3 = map(irValue3, 0, 1023, 0, 180);
+  int mappedValue4 = map(irValue4, 0, 1023, 0, 180);
+
+  // Print out the values you read for each IR sensor
+  Serial.print("IR Sensor 1: ");
+  Serial.println(mappedValue1);
+  Serial.print("IR Sensor 2: ");
+  Serial.println(mappedValue2);
+  Serial.print("IR Sensor 3: ");
+  Serial.println(mappedValue3);
+  Serial.print("IR Sensor 4: ");
+  Serial.println(mappedValue4);
+
+  // Calculate motor speeds based on IR sensor values
+  int motorSpeed1 = 180 - mappedValue1; // Reverse direction for sensor 1
+  int motorSpeed2 = 180 - mappedValue2; // Reverse direction for sensor 2
+  int motorSpeed3 = mappedValue3;       // Forward direction for sensor 3
+  int motorSpeed4 = mappedValue4;       // Forward direction for sensor 4
+
+  // Check the altitude using the sonar sensor
+  float currentAltitude = getSonarDistance();
+  Serial.print("Current Altitude: ");
+  Serial.println(currentAltitude);
+
+  // Adjust the motor speeds based on altitude
+  if (currentAltitude < minHeight) {
+    motorSpeed1 = 0;
+    motorSpeed2 = 0;
+    motorSpeed3 = 0;
+    motorSpeed4 = 0;
+  }
+
+  // Send the signals to the ESCs based on the mapped values
+  ESC1.writeMicroseconds(map(motorSpeed1, 0, 180, 1000, 2000));
+  ESC2.writeMicroseconds(map(motorSpeed2, 0, 180, 1000, 2000));
+  ESC3.writeMicroseconds(map(motorSpeed3, 0, 180, 1000, 2000));
+  ESC4.writeMicroseconds(map(motorSpeed4, 0, 180, 1000, 2000));
+
+  delay(100); // Delay for stability
+}
+
+
+
+
+//the motors will react to obstacles detected by the IR sensors. 
+//The motors' speeds are adjusted based on the mapped values of the IR sensor readings. You may need to fine-tune the mapping and motor speed calculations based on your specific hardware and requirements.
+//getSonarDistance function to read the distance from the ultrasonic sensor, 
+//and it adjusts the motor speeds based on both the IR sensors for obstacle avoidance and the sonar sensor for altitude control. Make sure to connect the sonar sensor's trigger and echo pins to the appropriate pins on your Arduino.
